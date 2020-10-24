@@ -12,14 +12,19 @@ Consider using the excellent `GNU
 Parallel <https://www.gnu.org/software/parallel/>`__ to apply OCRmyPDF
 to multiple files at once.
 
-Both ``parallel`` and ``ocrmypdf`` will try to use all available
-processors. To maximize parallelism without overloading your system with
-processes, consider using ``parallel -j 2`` to limit parallel to running
-two jobs at once.
+OCRmyPDF uses ``tesseract``, which has internal parallelization. 
+Unfortunately this parallelization works very badly if many ``tesseract`` 
+are run in parallel.
 
-This command will run all ocrmypdf all files named ``*.pdf`` in the
-current directory and write them to the previous created ``output/``
+Luckily it is possible to disable the parallelization in ``tesseract``
+with ``OMP_THREAD_LIMIT=1``.
+
+This command will run ocrmypdf on all files named ``*.pdf`` in the
+current directory and write them to the previously created ``output/``
 folder. It will not search subdirectories.
+
+It will run one job per CPU thread in parallel. So if you have a 
+4 core 8 thread CPU, it will run 8 jobs in parallel.
 
 The ``--tag`` argument tells parallel to print the filename as a prefix
 whenever a message is printed, so that one can trace any errors to the
@@ -27,7 +32,8 @@ file that produced them.
 
 .. code-block:: bash
 
-   parallel --tag -j 2 ocrmypdf '{}' 'output/{}' ::: *.pdf
+   export OMP_THREAD_LIMIT=1
+   parallel --tag ocrmypdf {} output/{} ::: *.pdf
 
 OCRmyPDF automatically repairs PDFs before parsing and gathering
 information from them.
@@ -49,13 +55,16 @@ where the PDFs are stored):
 
    find . -printf '%p' -name '*.pdf' -exec docker run --rm -v <host dir>:<container dir> jbarlow83/ocrmypdf '<container dir>/{}' '<container dir>/{}' \;
 
-This only runs one ``ocrmypdf`` process at a time. This variation uses
-``find`` to create a directory list and ``parallel`` to parallelize runs
-of ``ocrmypdf``, again updating files in place.
+This only runs one ``ocrmypdf`` process at a time.
+
+This variation uses ``find`` to create a directory list and ``parallel`` 
+to parallelize runs of ``ocrmypdf`` (one job per CPU thread), again
+updating files in place.
 
 .. code-block:: bash
 
-   find . -name '*.pdf' | parallel --tag -j 2 ocrmypdf '{}' '{}'
+   export OMP_THREAD_LIMIT=1
+   find . -name '*.pdf' | parallel --tag ocrmypdf {} {}
 
 In a Windows batch file, use
 
